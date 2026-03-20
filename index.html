@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Your Last Day</title>
+
+  <style>
+    body { font-family: Arial; text-align: center; margin-top: 40px; }
+
+    input, select { padding: 6px; margin: 5px; }
+
+    .bar {
+      width: 80%;
+      height: 30px;
+      margin: 15px auto;
+      display: flex;
+      background: #eee;
+    }
+
+    .seg { height:100%; }
+
+    #pastLife { background:#9e9e9e; }
+    #workLife { background:#f44336; }
+    #retireLife { background:#4caf50; }
+
+    #workRemain { background:#f44336; }
+    #retireRemain { background:#4caf50; }
+    #sleepRemain { background:#9c27b0; }
+
+    .desc {
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+
+    table {
+      margin: 30px auto;
+      border-collapse: collapse;
+    }
+
+    td {
+      border: 1px solid #ccc;
+      padding: 8px 12px;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #666;
+    }
+
+    #chartBox {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+
+    #celebBox {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      width: 260px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h1>Your Last Day</h1>
+
+<input type="date" id="birthday" value="1990-01-01">
+<select id="gender">
+  <option value="male">Male</option>
+  <option value="female">Female</option>
+</select>
+
+<h2 id="countdown"></h2>
+
+<!-- TOTAL LIFE -->
+<h3>Total Life</h3>
+<div class="bar">
+  <div id="pastLife" class="seg"></div>
+  <div id="workLife" class="seg"></div>
+  <div id="retireLife" class="seg"></div>
+</div>
+<div class="desc">
+⬜ Past life | 🟥 Work | 🟩 Retirement<br>
+Your full life split into lived time, working years, and retirement.
+</div>
+
+<!-- REMAINING LIFE -->
+<h3>Remaining Life</h3>
+<div class="bar">
+  <div id="workRemain" class="seg"></div>
+  <div id="retireRemain" class="seg"></div>
+  <div id="sleepRemain" class="seg"></div>
+</div>
+<div class="desc">
+🟥 Work | 🟩 Awake non-work time | 🟪 Sleep<br>
+All remaining time divided into work, sleep, and everything else (life outside work).
+</div>
+
+<!-- TABLE -->
+<table>
+<tr><td>Days to retirement</td><td id="retireLeft"></td></tr>
+<tr><td>Retirement days</td><td id="retireDays"></td></tr>
+<tr><td>Sundays left</td><td id="sundays"></td></tr>
+<tr><td>Olympics left</td><td id="olympics"></td></tr>
+<tr><td>Workdays left</td><td id="workdays"></td></tr>
+<tr><td>Total days left</td><td id="totaldays"></td></tr>
+
+<tr>
+<td>
+Estimated teeth lost<br>
+<span class="small">Based on average long-term tooth loss rates</span>
+</td>
+<td id="teeth"></td>
+</tr>
+
+<tr>
+<td>Teeth remaining at death</td>
+<td id="teethLeft"></td>
+</tr>
+
+<tr>
+<td>First tooth loss (est.)</td>
+<td id="firstTooth"></td>
+</tr>
+
+<tr><td>Hair growth remaining</td><td id="hair"></td></tr>
+</table>
+
+<!-- TEETH CHART -->
+<div id="chartBox">
+  <canvas id="teethChart" width="300" height="200"></canvas>
+  <div class="small">Teeth decrease over time →</div>
+</div>
+
+<!-- CELEBS -->
+<div id="celebBox">
+  <h4>You’ve Outlived</h4>
+  <table id="celebTable"></table>
+</div>
+
+<script>
+
+const celebrities = [
+  {name:"Matthew Perry", age:54},
+  {name:"Sinéad O'Connor", age:56},
+  {name:"Andre Braugher", age:61},
+  {name:"Carl Weathers", age:76},
+  {name:"OJ Simpson", age:76},
+  {name:"Angus Cloud", age:25},
+  {name:"Takeoff", age:28}
+];
+
+function pad(n){ return n.toString().padStart(2,'0'); }
+
+function setWidth(id,val){
+  if(!isFinite(val)) val = 0;
+  val = Math.max(0, Math.min(100, val));
+  document.getElementById(id).style.width = val + "%";
+}
+
+function drawChart(yearsLeft){
+  const c = document.getElementById("teethChart");
+  const ctx = c.getContext("2d");
+
+  ctx.clearRect(0,0,300,200);
+  ctx.beginPath();
+
+  for(let i=0;i<=100;i++){
+    const t = i/100;
+    const teeth = 32 * (1 - Math.pow(t,1.5));
+
+    const x = 20 + t * 260;
+    const y = 180 - (teeth/32)*160;
+
+    if(i===0) ctx.moveTo(x,y);
+    else ctx.lineTo(x,y);
+  }
+
+  ctx.strokeStyle = "#f44336";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function update(){
+
+  const b = document.getElementById("birthday").value || "1990-01-01";
+  const birth = new Date(b + "T00:00:00");
+  const now = new Date();
+
+  const gender = document.getElementById("gender").value || "male";
+  const lifespan = (gender === "female") ? 83 : 79;
+
+  const death = new Date(birth);
+  death.setFullYear(death.getFullYear() + lifespan);
+
+  const retire = new Date(birth);
+  retire.setFullYear(retire.getFullYear() + 67);
+
+  let totalLife = death - birth;
+  let lived = now - birth;
+  let remaining = death - now;
+
+  let workRemaining = Math.max(0, retire - now);
+  let retireRemaining = Math.max(0, death - Math.max(now, retire));
+
+  const d = Math.floor(remaining / 86400000);
+  const h = Math.floor((remaining / 3600000) % 24);
+  const m = Math.floor((remaining / 60000) % 60);
+  const s = Math.floor((remaining / 1000) % 60);
+
+  document.getElementById("countdown").innerText =
+    `${d}d ${pad(h)}:${pad(m)}:${pad(s)}`;
+
+  // LIFE GRAPHS
+  setWidth("pastLife", lived / totalLife * 100);
+  setWidth("workLife", workRemaining / totalLife * 100);
+  setWidth("retireLife", retireRemaining / totalLife * 100);
+
+  const sleep = remaining * 0.33;
+
+  setWidth("workRemain", workRemaining / remaining * 100);
+  setWidth("retireRemain", retireRemaining / remaining * 100);
+  setWidth("sleepRemain", sleep / remaining * 100);
+
+  // TABLE
+  document.getElementById("retireLeft").innerText = Math.floor(workRemaining / 86400000);
+  document.getElementById("retireDays").innerText = Math.floor((death - retire) / 86400000);
+  document.getElementById("sundays").innerText = Math.floor(d / 7);
+  document.getElementById("olympics").innerText = Math.floor((death.getFullYear() - now.getFullYear()) / 4);
+  document.getElementById("workdays").innerText = Math.floor((workRemaining / 86400000) * 5 / 7);
+  document.getElementById("totaldays").innerText = d;
+
+  const yearsLeft = remaining / (1000*60*60*24*365);
+
+  const teethLost = yearsLeft * 0.1;
+  const teethRemaining = Math.max(0, 32 - teethLost);
+
+  document.getElementById("teeth").innerText =
+    teethLost.toFixed(1) + " teeth";
+
+  document.getElementById("teethLeft").innerText =
+    teethRemaining.toFixed(0);
+
+  const firstLossAge = 40;
+  const firstLossDate = new Date(birth);
+  firstLossDate.setFullYear(firstLossDate.getFullYear() + firstLossAge);
+
+  document.getElementById("firstTooth").innerText =
+    (firstLossDate > now) ? firstLossDate.getFullYear() : "Already started";
+
+  document.getElementById("hair").innerText =
+    (yearsLeft * 0.15).toFixed(2) + " metres";
+
+  drawChart(yearsLeft);
+
+  // CELEBS
+  const table = document.getElementById("celebTable");
+  table.innerHTML = "<tr><th>Name</th><th>Age</th></tr>";
+
+  const age = now.getFullYear() - birth.getFullYear();
+
+  let younger = celebrities.filter(c => c.age < age);
+  if(younger.length < 5) younger = celebrities;
+
+  younger.slice(0,5).forEach(c=>{
+    table.innerHTML += `<tr><td>${c.name}</td><td>${c.age}</td></tr>`;
+  });
+}
+
+update();
+setInterval(update,1000);
+
+</script>
+
+</body>
+</html>
+```
